@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Einkaufsliste Pro Max</title>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<style>
+body { font-family: Arial; background:#f2f4f8; margin:0; }
+header { background:#4CAF50; color:white; padding:15px; text-align:center; }
+
+.container { max-width:500px; margin:auto; padding:15px; }
+
+button, input {
+  width:100%; padding:10px; margin-top:8px;
+  border-radius:8px;
+}
+
+ul { list-style:none; padding:0; }
+
+li {
+  background:white; margin-top:10px; padding:12px;
+  border-radius:10px;
+  display:flex; justify-content:space-between;
+}
+</style>
+</head>
+
+<body>
+
+<header> Einkaufsliste PRO MAX</header>
+
+<div class="container">
+
+<button onclick="startScanner()"> Barcode scannen</button>
+
+<div id="reader"></div>
+
+<input type="text" id="customFood" placeholder="Produkt manuell">
+<button onclick="addCustom()"> Hinzufügen</button>
+
+<ul id="list"></ul>
+
+</div>
+
+<script>
+
+let items = JSON.parse(localStorage.getItem("items")) || [];
+render();
+
+//  Scanner starten
+function startScanner(){
+  const scanner = new Html5Qrcode("reader");
+
+  scanner.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: 250 },
+    async (barcode) => {
+      scanner.stop();
+
+      //  Produktdaten laden
+      const res = await fetch(
+        "https://world.openfoodfacts.org/api/v0/product/" + barcode + ".json"
+      );
+      const data = await res.json();
+
+      const name = data.product.product_name || "Unbekanntes Produkt";
+
+      addItem(name);
+    }
+  );
+}
+
+//  hinzufügen
+function addItem(name){
+  items.push({ name, done:false });
+  save();
+  render();
+}
+
+// manuell
+function addCustom(){
+  const val = document.getElementById("customFood").value;
+  if(val) addItem(val);
+}
+
+// anzeigen
+function render(){
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+
+  items.forEach((item,i)=>{
+    const li = document.createElement("li");
+
+    li.innerHTML = `
+      <span onclick="toggle(${i})">${item.name}</span>
+      <button onclick="remove(${i})">X</button>
+    `;
+
+    list.appendChild(li);
+  });
+}
+
+// toggle
+function toggle(i){
+  items[i].done = !items[i].done;
+  save(); render();
+}
+
+// delete
+function remove(i){
+  items.splice(i,1);
+  save(); render();
+}
+
+// save
+function save(){
+  localStorage.setItem("items", JSON.stringify(items));
+}
+
+</script>
+
+</body>
+</html>
